@@ -1,36 +1,45 @@
 from flask import Flask, request, jsonify
-from openai import OpenAI
 import os
+import requests
 
 app = Flask(__name__)
 
-# API anahtarını ortam değişkeninden alacağız
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+MODEL_NAME = "llama-3.1-70b-versatile"    # çok güçlü ve ücretsiz
 
 @app.route("/command", methods=["POST"])
 def command():
     data = request.get_json()
     prompt = data.get("prompt", "")
 
-    # Burada hep KOMUT formatı üretmesini isteyebilirsin
     system_msg = (
-        "Bilgisayarı kontrol etmek için sadece komut üret. "
-        "Format örnekleri: "
-        "PRESS w 2 | MOVE_MOUSE 800 400 | CLICK | TYPE Merhaba | OPEN notepad.exe. "
-        "Açıklama yazma, sadece tek satır komut döndür."
+        "Sadece TEK SATIRLIK bir bilgisayar kontrol komutu üret. "
+        "Formatlar: PRESS w 1 | MOVE_MOUSE 800 450 | CLICK | TYPE Merhaba | OPEN notepad.exe "
+        "Açıklama, yorum, açıklayıcı metin YAZMA. Sadece komut döndür."
     )
 
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
+    payload = {
+        "model": MODEL_NAME,
+        "messages": [
             {"role": "system", "content": system_msg},
             {"role": "user", "content": prompt}
         ]
-    )
+    }
 
-    output = completion.choices[0].message.content.strip()
-    return jsonify({"command": output})
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {GROQ_API_KEY}"
+    }
+
+    r = requests.post(GROQ_URL, json=payload, headers=headers)
+    
+    try:
+        result = r.json()
+        command = result["choices"][0]["message"]["content"].strip()
+        return jsonify({"command": command})
+    except Exception as e:
+        return jsonify({"error": str(e), "raw": r.text}), 500
 
 if __name__ == "__main__":
-    # Render kendi portunu verecek, ama lokalde test için 5000:
     app.run(host="0.0.0.0", port=5000)
