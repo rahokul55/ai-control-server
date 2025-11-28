@@ -3,20 +3,24 @@ import os, requests
 
 app = Flask(__name__)
 
+# GROQ yapılandırması
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL_NAME = "llama-3.1-8b-instant"
+MODEL_NAME = "llama-3.1-8b-instant"   # %100 çalışan model
 
 MEMORY_FILE = "memory.txt"
 
+# Hafıza yazma
 def save_memory(prompt, command, status):
     with open(MEMORY_FILE, "a", encoding="utf-8") as f:
         f.write(f"PROMPT: {prompt}\nCOMMAND: {command}\nSTATUS: {status}\n---\n")
 
+# Hafıza okuma
 def load_memory():
     if not os.path.exists(MEMORY_FILE):
         return ""
     return open(MEMORY_FILE, "r", encoding="utf-8").read()
+
 
 @app.route("/command", methods=["POST"])
 def command():
@@ -28,8 +32,8 @@ def command():
 
     system_msg = (
         "Sen bilgisayar kontrol ajanısın. "
-        "Görev: TEK SATIR komut üret. Açıklama yok.\n"
-        "Format: PRESS w 1 | MOVE_MOUSE 800 450 | CLICK | TYPE yazı | OPEN app.exe\n"
+        "Görev: TEK SATIR komut üret. Açıklama yazma.\n"
+        "Format: PRESS w 1 | MOVE_MOUSE 800 450 | CLICK | TYPE yazi | OPEN app.exe\n"
         "Geçmiş hafıza:\n" + memory_text
     )
 
@@ -47,12 +51,23 @@ def command():
     }
 
     r = requests.post(GROQ_URL, json=payload, headers=headers)
-    result = r.json()
-    command = result["choices"][0]["message"]["content"].strip()
 
-    save_memory(prompt, command, status)
+    try:
+        result = r.json()
 
-    return jsonify({"command": command})
+        # Eğer GROQ hata döndürmüşse
+        if "error" in result:
+            return jsonify({"error": result["error"], "raw": result}), 500
+
+        cmd = result["choices"][0]["message"]["content"].strip()
+
+        save_memory(prompt, cmd, status)
+
+        return jsonify({"command": cmd})
+
+    except Exception as e:
+        return jsonify({"error": str(e), "raw": r.text}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
