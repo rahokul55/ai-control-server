@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL_NAME = "llama-3.3-8b-instant"
+MODEL_NAME = "llama-3.3-70b-versatile"
 
 MEMORY_FILE = "memory.txt"
 
